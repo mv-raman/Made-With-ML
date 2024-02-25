@@ -20,10 +20,18 @@ def to_markdown(data):
         elif isinstance(value, list) and all(isinstance(item, dict) for item in value):
             if value:
                 headers = sorted(set().union(*[item.keys() for item in value]))
-                markdown += "| " + " | ".join(headers) + " |\n| " + " | ".join(["---"] * len(headers)) + " |\n"
+                markdown += (
+                    "| "
+                    + " | ".join(headers)
+                    + " |\n| "
+                    + " | ".join(["---"] * len(headers))
+                    + " |\n"
+                )
                 for item in value:
                     value_list = [
-                        "{:.3e}".format(float(item.get(header, ""))) if not str(item.get(header, "")).isdigit() else str(item.get(header, ""))
+                        "{:.3e}".format(float(item.get(header, "")))
+                        if not str(item.get(header, "")).isdigit()
+                        else str(item.get(header, ""))
                         for header in headers
                     ]
                     markdown += "| " + " | ".join(value_list) + " |\n"

@@ -2,7 +2,6 @@ import json
 
 import pytest
 import utils
-
 from madewithml import tune
 
 

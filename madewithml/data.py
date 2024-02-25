@@ -4,11 +4,10 @@ from typing import Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import ray
+from madewithml.config import STOPWORDS
 from ray.data import Dataset
 from sklearn.model_selection import train_test_split
 from transformers import BertTokenizer
-
-from madewithml.config import STOPWORDS
 
 
 def load_data(dataset_loc: str, num_samples: int = None) -> Dataset:
@@ -49,23 +48,35 @@ def stratify_split(
         Tuple[Dataset, Dataset]: the stratified train and test datasets.
     """
 
-    def _add_split(df: pd.DataFrame) -> pd.DataFrame:  # pragma: no cover, used in parent function
+    def _add_split(
+        df: pd.DataFrame,
+    ) -> pd.DataFrame:  # pragma: no cover, used in parent function
         """Naively split a dataframe into train and test splits.
         Add a column specifying whether it's the train or test split."""
-        train, test = train_test_split(df, test_size=test_size, shuffle=shuffle, random_state=seed)
+        train, test = train_test_split(
+            df, test_size=test_size, shuffle=shuffle, random_state=seed
+        )
         train["_split"] = "train"
         test["_split"] = "test"
         return pd.concat([train, test])
 
-    def _filter_split(df: pd.DataFrame, split: str) -> pd.DataFrame:  # pragma: no cover, used in parent function
+    def _filter_split(
+        df: pd.DataFrame, split: str
+    ) -> pd.DataFrame:  # pragma: no cover, used in parent function
         """Filter by data points that match the split column's value
         and return the dataframe with the _split column dropped."""
         return df[df["_split"] == split].drop("_split", axis=1)
 
     # Train, test split with stratify
-    grouped = ds.groupby(stratify).map_groups(_add_split, batch_format="pandas")  # group by each unique value in the column we want to stratify on
-    train_ds = grouped.map_batches(_filter_split, fn_kwargs={"split": "train"}, batch_format="pandas")  # combine
-    test_ds = grouped.map_batches(_filter_split, fn_kwargs={"split": "test"}, batch_format="pandas")  # combine
+    grouped = ds.groupby(stratify).map_groups(
+        _add_split, batch_format="pandas"
+    )  # group by each unique value in the column we want to stratify on
+    train_ds = grouped.map_batches(
+        _filter_split, fn_kwargs={"split": "train"}, batch_format="pandas"
+    )  # combine
+    test_ds = grouped.map_batches(
+        _filter_split, fn_kwargs={"split": "test"}, batch_format="pandas"
+    )  # combine
 
     # Shuffle each split (required)
     train_ds = train_ds.random_shuffle(seed=seed)
@@ -92,7 +103,9 @@ def clean_text(text: str, stopwords: List = STOPWORDS) -> str:
     text = pattern.sub(" ", text)
 
     # Spacing and filters
-    text = re.sub(r"([!\"'#$%&()*\+,-./:;<=>?@\\\[\]^_`{|}~])", r" \1 ", text)  # add spacing
+    text = re.sub(
+        r"([!\"'#$%&()*\+,-./:;<=>?@\\\[\]^_`{|}~])", r" \1 ", text
+    )  # add spacing
     text = re.sub("[^A-Za-z0-9]+", " ", text)  # remove non alphanumeric chars
     text = re.sub(" +", " ", text)  # remove multiple spaces
     text = text.strip()  # strip white space at the ends
@@ -110,9 +123,17 @@ def tokenize(batch: Dict) -> Dict:
     Returns:
         Dict: batch of data with the results of tokenization (`input_ids` and `attention_mask`) on the text inputs.
     """
-    tokenizer = BertTokenizer.from_pretrained("allenai/scibert_scivocab_uncased", return_dict=False)
-    encoded_inputs = tokenizer(batch["text"].tolist(), return_tensors="np", padding="longest")
-    return dict(ids=encoded_inputs["input_ids"], masks=encoded_inputs["attention_mask"], targets=np.array(batch["tag"]))
+    tokenizer = BertTokenizer.from_pretrained(
+        "allenai/scibert_scivocab_uncased", return_dict=False
+    )
+    encoded_inputs = tokenizer(
+        batch["text"].tolist(), return_tensors="np", padding="longest"
+    )
+    return dict(
+        ids=encoded_inputs["input_ids"],
+        masks=encoded_inputs["attention_mask"],
+        targets=np.array(batch["tag"]),
+    )
 
 
 def preprocess(df: pd.DataFrame, class_to_index: Dict) -> Dict:
@@ -127,7 +148,9 @@ def preprocess(df: pd.DataFrame, class_to_index: Dict) -> Dict:
     """
     df["text"] = df.title + " " + df.description  # feature engineering
     df["text"] = df.text.apply(clean_text)  # clean text
-    df = df.drop(columns=["id", "created_on", "title", "description"], errors="ignore")  # clean dataframe
+    df = df.drop(
+        columns=["id", "created_on", "title", "description"], errors="ignore"
+    )  # clean dataframe
     df = df[["text", "tag"]]  # rearrange columns
     df["tag"] = df["tag"].map(class_to_index)  # label encoding
     outputs = tokenize(df)
@@ -148,4 +171,8 @@ class CustomPreprocessor:
         return self
 
     def transform(self, ds):
-        return ds.map_batches(preprocess, fn_kwargs={"class_to_index": self.class_to_index}, batch_format="pandas")
+        return ds.map_batches(
+            preprocess,
+            fn_kwargs={"class_to_index": self.class_to_index},
+            batch_format="pandas",
+        )

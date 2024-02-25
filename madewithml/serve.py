@@ -5,11 +5,10 @@ from typing import Dict
 
 import ray
 from fastapi import FastAPI
-from ray import serve
-from starlette.requests import Request
-
 from madewithml import evaluate, predict
 from madewithml.config import MLFLOW_TRACKING_URI, mlflow
+from ray import serve
+from starlette.requests import Request
 
 # Define application
 app = FastAPI(
@@ -26,7 +25,9 @@ class ModelDeployment:
         """Initialize the model."""
         self.run_id = run_id
         self.threshold = threshold
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)  # so workers have access to model registry
+        mlflow.set_tracking_uri(
+            MLFLOW_TRACKING_URI
+        )  # so workers have access to model registry
         best_checkpoint = predict.get_best_checkpoint(run_id=run_id)
         self.predictor = predict.TorchPredictor.from_checkpoint(best_checkpoint)
 
@@ -54,7 +55,15 @@ class ModelDeployment:
     @app.post("/predict/")
     async def _predict(self, request: Request):
         data = await request.json()
-        sample_ds = ray.data.from_items([{"title": data.get("title", ""), "description": data.get("description", ""), "tag": ""}])
+        sample_ds = ray.data.from_items(
+            [
+                {
+                    "title": data.get("title", ""),
+                    "description": data.get("description", ""),
+                    "tag": "",
+                }
+            ]
+        )
         results = predict.predict_proba(ds=sample_ds, predictor=self.predictor)
 
         # Apply custom logic
@@ -70,7 +79,11 @@ class ModelDeployment:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_id", help="run ID to use for serving.")
-    parser.add_argument("--threshold", type=float, default=0.9, help="threshold for `other` class.")
+    parser.add_argument(
+        "--threshold", type=float, default=0.9, help="threshold for `other` class."
+    )
     args = parser.parse_args()
-    ray.init(runtime_env={"env_vars": {"GITHUB_USERNAME": os.environ["GITHUB_USERNAME"]}})
+    ray.init(
+        runtime_env={"env_vars": {"GITHUB_USERNAME": os.environ["GITHUB_USERNAME"]}}
+    )
     serve.run(ModelDeployment.bind(run_id=args.run_id, threshold=args.threshold))

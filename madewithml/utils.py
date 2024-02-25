@@ -5,10 +5,9 @@ from typing import Any, Dict, List
 
 import numpy as np
 import torch
+from madewithml.config import mlflow
 from ray.data import DatasetContext
 from ray.train.torch import get_device
-
-from madewithml.config import mlflow
 
 DatasetContext.get_current().execution_options.preserve_order = True
 
@@ -73,7 +72,9 @@ def pad_array(arr: np.ndarray, dtype=np.int32) -> np.ndarray:
     return padded_arr
 
 
-def collate_fn(batch: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:  # pragma: no cover, air internal
+def collate_fn(
+    batch: Dict[str, np.ndarray]
+) -> Dict[str, torch.Tensor]:  # pragma: no cover, air internal
     """Convert a batch of numpy arrays to tensors (with appropriate padding).
 
     Args:
@@ -87,11 +88,15 @@ def collate_fn(batch: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:  # prag
     dtypes = {"ids": torch.int32, "masks": torch.int32, "targets": torch.int64}
     tensor_batch = {}
     for key, array in batch.items():
-        tensor_batch[key] = torch.as_tensor(array, dtype=dtypes[key], device=get_device())
+        tensor_batch[key] = torch.as_tensor(
+            array, dtype=dtypes[key], device=get_device()
+        )
     return tensor_batch
 
 
-def get_run_id(experiment_name: str, trial_id: str) -> str:  # pragma: no cover, mlflow functionality
+def get_run_id(
+    experiment_name: str, trial_id: str
+) -> str:  # pragma: no cover, mlflow functionality
     """Get the MLflow run ID for a specific Ray trial ID.
 
     Args:
@@ -102,7 +107,10 @@ def get_run_id(experiment_name: str, trial_id: str) -> str:  # pragma: no cover,
         str: run id of the trial.
     """
     trial_name = f"TorchTrainer_{trial_id}"
-    run = mlflow.search_runs(experiment_names=[experiment_name], filter_string=f"tags.trial_name = '{trial_name}'").iloc[0]
+    run = mlflow.search_runs(
+        experiment_names=[experiment_name],
+        filter_string=f"tags.trial_name = '{trial_name}'",
+    ).iloc[0]
     return run.run_id
 
 

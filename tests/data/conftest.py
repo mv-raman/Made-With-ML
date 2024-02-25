@@ -7,7 +7,9 @@ def pytest_addoption(parser):
     """Add option to specify dataset location when executing tests from CLI.
     Ex: pytest --dataset-loc=$DATASET_LOC tests/data --verbose --disable-warnings
     """
-    parser.addoption("--dataset-loc", action="store", default=None, help="Dataset location.")
+    parser.addoption(
+        "--dataset-loc", action="store", default=None, help="Dataset location."
+    )
 
 
 @pytest.fixture(scope="module")

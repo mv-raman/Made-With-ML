@@ -1,5 +1,4 @@
 import pytest
-
 from madewithml.data import CustomPreprocessor
 
 
